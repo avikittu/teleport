@@ -19,6 +19,7 @@ limitations under the License.
 package web
 
 import (
+	"bytes"
 	"compress/gzip"
 	"context"
 	"encoding/base64"
@@ -367,6 +368,9 @@ func NewHandler(cfg Config, opts ...HandlerOption) (*APIHandler, error) {
 
 	// Sign required files to set up mTLS using the db format.
 	h.POST("/webapi/sites/:site/sign/db", h.WithProvisionTokenAuth(h.signDatabaseCertificate))
+
+	// Returns the CA Certs
+	h.GET("/webapi/sites/:site/auth/export", h.authExportPublic)
 
 	// token generation
 	h.POST("/webapi/token", h.WithAuth(h.createTokenHandle))
@@ -3010,4 +3014,26 @@ func ssoSetWebSessionAndRedirectURL(w http.ResponseWriter, r *http.Request, resp
 	response.clientRedirectURL = parsedURL.RequestURI()
 
 	return nil
+}
+
+// authExportPublic returns the CA Certs that can be used to set up a chain of trust which includes the current Teleport Cluster
+//
+// GET /webapi/sites/:site/auth/export?type=<auth type>
+func (h *Handler) authExportPublic(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+	authorities, err := auth.ExportAuthorities(r.Context(), auth.ExportAuthoritiesRequest{
+		Client:            h.GetProxyClient(),
+		AuthType:          r.URL.Query().Get("type"),
+		ExportPrivateKeys: false,
+	})
+	if err != nil {
+		h.log.WithError(err).Debug("Failed to generate CA Certs.")
+		http.Error(w, err.Error(), trace.ErrorToCode(err))
+		return
+	}
+
+	contentsReader := bytes.NewReader([]byte(authorities))
+
+	// ServeContent sets the correct headers: Content-Type, Content-Length and Accept-Ranges.
+	// It also handles the Range negotiation
+	http.ServeContent(w, r, "authorized_hosts.txt", time.Now(), contentsReader)
 }
