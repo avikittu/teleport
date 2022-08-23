@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"time"
 
 	"github.com/coreos/go-oidc"
 	"github.com/gravitational/teleport/api/types"
@@ -23,11 +24,28 @@ type gcpIDToken struct {
 	} `json:"google"`
 }
 
+type oidcJoinProvider interface {
+	VerifyToken(
+		now func() time.Time,
+		jwt string,
+		clusterName string,
+	) (*oidc.IDToken, error)
+}
+
+type gcpOIDCJoinProvider struct {
+	*oidc.Provider
+}
+
 func (a *Server) checkOIDCJoinRequest(ctx context.Context, req *types.RegisterUsingTokenRequest) error {
 	if req.OIDCJWT == "" {
 		return trace.BadParameter("Request must contain OIDCJWT value when using OIDC based joining.")
 	}
 	_, err := a.GetToken(ctx, req.Token)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	clusterName, err := a.GetClusterName()
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -42,17 +60,13 @@ func (a *Server) checkOIDCJoinRequest(ctx context.Context, req *types.RegisterUs
 		return trace.Wrap(err)
 	}
 
-	clusterName, err := a.GetClusterName()
-	if err != nil {
-		return trace.Wrap(err)
-	}
-
 	v := provider.Verifier(&oidc.Config{
 		// Expect the audience of the token to be the name of the cluster.
 		// This reduces the risk that a JWT leaked by another application can
 		// be used against Teleport.
 		ClientID:             clusterName.GetClusterName(),
 		SupportedSigningAlgs: []string{oidc.RS256, oidc.RS384, oidc.RS512},
+		Now:                  a.GetClock().Now,
 	})
 
 	verifiedToken, err := v.Verify(ctx, req.OIDCJWT)
@@ -64,6 +78,8 @@ func (a *Server) checkOIDCJoinRequest(ctx context.Context, req *types.RegisterUs
 	if err := verifiedToken.Claims(&parsedClaims); err != nil {
 		return trace.Wrap(err)
 	}
+
+	// TODO: Compare parseClaims to the allow rules in token
 
 	return nil
 }
