@@ -20,6 +20,7 @@ type gcpIDToken struct {
 			ProjectNumber int    `json:"project_number"`
 			InstanceID    string `json:"instance_id"`
 			InstanceName  string `json:"instance_name"`
+			Zone          string `json:"zone"`
 		} `json:"compute_engine"`
 	} `json:"google"`
 }
@@ -69,7 +70,7 @@ func (a *Server) checkOIDCJoinRequest(ctx context.Context, req *types.RegisterUs
 		return trace.Wrap(err)
 	}
 
-	// If a single rule passes, accept the token
+	// If a single rule passes the checks, accept the token
 	for _, rule := range tokenResource.GetAllowRules() {
 		if rule.Sub != "" && rule.Sub != parsedClaims.Sub {
 			continue
@@ -90,6 +91,9 @@ func (a *Server) checkOIDCJoinRequest(ctx context.Context, req *types.RegisterUs
 			if want.InstanceName != "" && want.InstanceName != is.InstanceName {
 				continue
 			}
+			if want.Zone != "" && want.Zone != is.Zone {
+				continue
+			}
 		}
 
 		// The rule passed, so we should return without error
@@ -97,5 +101,5 @@ func (a *Server) checkOIDCJoinRequest(ctx context.Context, req *types.RegisterUs
 	}
 
 	// TODO: Make this error more useful
-	return fmt.Errorf("token did not match any allow rules")
+	return fmt.Errorf("token did not match any configured allow rules")
 }

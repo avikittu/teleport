@@ -801,6 +801,7 @@ message TokenRule {
             int64 ProjectNumber = 2 [ (gogoproto.jsontag) = "project_number,omitempty" ];
             string InstanceID = 3 [ (gogoproto.jsontag) = "instance_id,omitempty" ];
             string InstanceName = 4 [ (gogoproto.jsontag) = "instance_name,omitempty" ];
+            string Zone = 5 [ (gogoproto.jsontag) = "zone,omitempty" ];
         }
         ComputeEngineSubclaim ComputeEngine = 1
             [ (gogoproto.jsontag) = "compute_engine,omitempty" ];
@@ -817,7 +818,6 @@ message TokenRule {
     // AWSARN is used for the IAM join method, the AWS identity of joining nodes
     // must match this ARN. Supports wildcards "*" and "?".
     string AWSARN = 4 [ (gogoproto.jsontag) = "aws_arn,omitempty" ];
-
     string Sub = 5 [ (gogoproto.jsontag) = "sub,omitempty" ];
     GoogleSubclaim Google = 6 [ (gogoproto.jsontag) = "google,omitempty" ];
 }
