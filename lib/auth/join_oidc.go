@@ -2,7 +2,7 @@ package auth
 
 import (
 	"context"
-	"time"
+	"fmt"
 
 	"github.com/coreos/go-oidc"
 	"github.com/gravitational/teleport/api/types"
@@ -24,23 +24,13 @@ type gcpIDToken struct {
 	} `json:"google"`
 }
 
-type oidcJoinProvider interface {
-	VerifyToken(
-		now func() time.Time,
-		jwt string,
-		clusterName string,
-	) (*oidc.IDToken, error)
-}
-
-type gcpOIDCJoinProvider struct {
-	*oidc.Provider
-}
-
+// TODO: This is currently very GCP centric, extract GCP specific functionality
+// to some kind of provider via an interface :D
 func (a *Server) checkOIDCJoinRequest(ctx context.Context, req *types.RegisterUsingTokenRequest) error {
 	if req.OIDCJWT == "" {
 		return trace.BadParameter("Request must contain OIDCJWT value when using OIDC based joining.")
 	}
-	_, err := a.GetToken(ctx, req.Token)
+	tokenResource, err := a.GetToken(ctx, req.Token)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -79,7 +69,33 @@ func (a *Server) checkOIDCJoinRequest(ctx context.Context, req *types.RegisterUs
 		return trace.Wrap(err)
 	}
 
-	// TODO: Compare parseClaims to the allow rules in token
+	// If a single rule passes, accept the token
+	for _, rule := range tokenResource.GetAllowRules() {
+		if rule.Sub != "" && rule.Sub != parsedClaims.Sub {
+			continue
+		}
 
-	return nil
+		if rule.Google != nil && rule.Google.ComputeEngine != nil {
+			want := rule.Google.ComputeEngine
+			is := parsedClaims.Google.ComputeEngine
+			if want.ProjectID != "" && want.ProjectID != is.ProjectID {
+				continue
+			}
+			if want.ProjectNumber != 0 && int(want.ProjectNumber) != is.ProjectNumber {
+				continue
+			}
+			if want.InstanceID != "" && want.InstanceID != is.InstanceID {
+				continue
+			}
+			if want.InstanceName != "" && want.InstanceName != is.InstanceName {
+				continue
+			}
+		}
+
+		// The rule passed, so we should return without error
+		return nil
+	}
+
+	// TODO: Make this error more useful
+	return fmt.Errorf("token did not match any allow rules")
 }
