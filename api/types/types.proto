@@ -808,6 +808,40 @@ message TokenRule {
     string AWSARN = 4 [ (gogoproto.jsontag) = "aws_arn,omitempty" ];
 }
 
+message TokenRuleIAM {
+    // AWSAccount is the AWS account ID.
+    string AWSAccount = 1 [ (gogoproto.jsontag) = "aws_account,omitempty" ];
+    // AWSARN is used for the IAM join method, the AWS identity of joining nodes
+    // must match this ARN. Supports wildcards "*" and "?".
+    string AWSARN = 2 [ (gogoproto.jsontag) = "aws_arn,omitempty" ];
+}
+
+message TokenRuleEC2 {
+    // AWSAccount is the AWS account ID.
+    string AWSAccount = 1 [ (gogoproto.jsontag) = "aws_account,omitempty" ];
+    // AWSRegions is a list of regions node is allowed to join from.
+    repeated string AWSRegions = 2 [ (gogoproto.jsontag) = "aws_regions,omitempty" ];
+    // AWSRole is the the ARN of the AWS role that the auth server will assume
+    // in order to call the ec2 API.
+    string AWSRole = 3 [ (gogoproto.jsontag) = "aws_role,omitempty" ];
+}
+
+message TokenRuleOIDCGCP {
+    message GoogleSubclaim {
+        message ComputeEngineSubclaim {
+            string ProjectID = 1 [ (gogoproto.jsontag) = "project_id,omitempty" ];
+            int64 ProjectNumber = 2 [ (gogoproto.jsontag) = "project_number,omitempty" ];
+            string InstanceID = 3 [ (gogoproto.jsontag) = "instance_id,omitempty" ];
+            string InstanceName = 4 [ (gogoproto.jsontag) = "instance_name,omitempty" ];
+        }
+        ComputeEngineSubclaim ComputeEngine = 1
+            [ (gogoproto.jsontag) = "compute_engine,omitempty" ];
+    }
+
+    string Sub = 1 [ (gogoproto.jsontag) = "sub,omitempty" ];
+    GoogleSubclaim Google = 2 [ (gogoproto.jsontag) = "google,omitempty" ];
+}
+
 // ProvisionTokenSpecV2 is a specification for V2 token
 message ProvisionTokenSpecV2 {
     // Roles is a list of roles associated with the token,
