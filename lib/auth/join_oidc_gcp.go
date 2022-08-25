@@ -35,7 +35,7 @@ type gcpOIDCTokenValidator struct {
 	clusterNameProvider clusterNameProvider
 }
 
-func NewGCPOIDCTokenChecker(
+func newGCPOIDCTokenChecker(
 	ctx context.Context,
 	clock clockwork.Clock,
 	cnp clusterNameProvider,
@@ -83,27 +83,31 @@ func (v *gcpOIDCTokenValidator) Check(
 	}
 
 	// If a single rule passes the checks, accept the token
+	return v.evaluateAllowRules(parsedClaims, pt)
+}
+
+func (v *gcpOIDCTokenValidator) evaluateAllowRules(token gcpIDToken, pt types.ProvisionToken) error {
 	for _, rule := range pt.GetAllowRules() {
-		if rule.Sub != "" && rule.Sub != parsedClaims.Sub {
+		if rule.Sub != "" && rule.Sub != token.Sub {
 			continue
 		}
 
 		if rule.Google != nil && rule.Google.ComputeEngine != nil {
-			want := rule.Google.ComputeEngine
-			is := parsedClaims.Google.ComputeEngine
-			if want.ProjectID != "" && want.ProjectID != is.ProjectID {
+			rule := rule.Google.ComputeEngine
+			token := token.Google.ComputeEngine
+			if rule.ProjectID != "" && rule.ProjectID != token.ProjectID {
 				continue
 			}
-			if want.ProjectNumber != 0 && int(want.ProjectNumber) != is.ProjectNumber {
+			if rule.ProjectNumber != 0 && int(rule.ProjectNumber) != token.ProjectNumber {
 				continue
 			}
-			if want.InstanceID != "" && want.InstanceID != is.InstanceID {
+			if rule.InstanceID != "" && rule.InstanceID != token.InstanceID {
 				continue
 			}
-			if want.InstanceName != "" && want.InstanceName != is.InstanceName {
+			if rule.InstanceName != "" && rule.InstanceName != token.InstanceName {
 				continue
 			}
-			if want.Zone != "" && want.Zone != is.Zone {
+			if rule.Zone != "" && rule.Zone != token.Zone {
 				continue
 			}
 		}

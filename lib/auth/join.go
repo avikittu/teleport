@@ -98,7 +98,7 @@ func (a *Server) RegisterUsingToken(ctx context.Context, req *types.RegisterUsin
 		return nil, trace.Wrap(err)
 	}
 
-	oidcGCPProvider, err := NewGCPOIDCTokenChecker(ctx, a.GetClock(), a)
+	oidcGCPProvider, err := newGCPOIDCTokenChecker(a.closeCtx, a.GetClock(), a)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
