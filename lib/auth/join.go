@@ -98,6 +98,11 @@ func (a *Server) RegisterUsingToken(ctx context.Context, req *types.RegisterUsin
 		return nil, trace.Wrap(err)
 	}
 
+	oidcGCPProvider, err := NewGCPOIDCTokenChecker(ctx, a.GetClock(), a)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
 	switch a.tokenJoinMethod(ctx, req.Token) {
 	case types.JoinMethodEC2:
 		if err := a.checkEC2JoinRequest(ctx, req); err != nil {
@@ -109,7 +114,7 @@ func (a *Server) RegisterUsingToken(ctx context.Context, req *types.RegisterUsin
 			"join method but the node has connected to the wrong endpoint, make " +
 			"sure your node is configured to use the IAM join method")
 	case types.JoinMethodOIDCGCP:
-		if err := a.checkOIDCJoinRequest(ctx, req); err != nil {
+		if err := a.checkOIDCJoinRequest(ctx, req, oidcGCPProvider); err != nil {
 			return nil, trace.Wrap(err)
 		}
 	case types.JoinMethodToken:
